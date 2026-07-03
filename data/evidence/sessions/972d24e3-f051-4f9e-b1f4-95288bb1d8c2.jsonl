@@ -1,0 +1,3 @@
+{"session_id": "972d24e3-f051-4f9e-b1f4-95288bb1d8c2", "sequence_number": 0, "timestamp": "2026-07-03T05:12:27.197850+00:00", "event_type": "session_start", "user_prompt": "Find all emails related to salary", "model": "qwen3:8b"}
+{"session_id": "972d24e3-f051-4f9e-b1f4-95288bb1d8c2", "sequence_number": 1, "timestamp": "2026-07-03T05:12:27.198851+00:00", "event_type": "user_prompt", "content": "Find all emails related to salary"}
+{"session_id": "972d24e3-f051-4f9e-b1f4-95288bb1d8c2", "sequence_number": 2, "timestamp": "2026-07-03T05:13:23.465234+00:00", "event_type": "session_end", "total_events": 2, "status": "completed"}
