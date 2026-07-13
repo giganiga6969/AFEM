@@ -36,3 +36,27 @@ logs/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Runtime forensic session evidence
+data/evidence/sessions/*.jsonl
+
+# Generated forensic reports
+data/evidence/reports/**/*.json
+data/evidence/reports/*.json
+
+# Local source backups
+*.phase3_backup
+*.bak
+
+# Runtime databases
+*.db
+*.db-wal
+*.db-shm
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+.venv/

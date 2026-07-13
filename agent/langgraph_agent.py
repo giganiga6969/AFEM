@@ -160,9 +160,15 @@ def lc_create_draft(
     body:       str,
     cc:         str = "",
 ) -> str:
-    """Create a new draft email and store it in the mailbox. Returns the draft record as JSON."""
+    """
+Send an existing simulated email draft.
+
+The draft_id must be the exact ID returned by a successful
+create_draft result or obtained from an authoritative draft lookup.
+Never invent, guess, or assume a draft ID.
+"""
     record = create_draft(
-        sender=sender,
+        sender="afem-agent@afem.local",
         recipients=recipients,
         subject=subject,
         body=body,
@@ -291,11 +297,27 @@ def agent_node(state: AgentState) -> dict:
     logger.info("Tool calls:\n%s", response.tool_calls)
 
     if response.tool_calls:
-        for tc in response.tool_calls:
-            collector.log_tool_call(
-                tool_name=tc["name"],
-                input_data=tc["args"],
+        if len(response.tool_calls) > 1:
+            logger.warning(
+                "LLM emitted %d tool calls in one response. "
+                "AFEM permits one tool call per iteration; "
+                "only the first call will be executed.",
+                len(response.tool_calls),
             )
+
+            first_call = response.tool_calls[0]
+
+            response = AIMessage(
+                content=response.content or "",
+                tool_calls=[first_call],
+            )
+
+        tc = response.tool_calls[0]
+
+        collector.log_tool_call(
+            tool_name=tc["name"],
+            input_data=tc["args"],
+        )
     else:
         collector.log_agent_response(content=response.content or "")
 

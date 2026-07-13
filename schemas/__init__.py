@@ -54,6 +54,12 @@ from schemas.integrity import (
     VerificationResult,
 )
 
+# Phase 3 report types
+from schemas.report import (
+    ReconstructionCompleteness,
+    TimelineEntry,
+    TimelineReport,
+)
 __all__ = [
     # Mailbox data models
     "EmailRecord",
@@ -78,4 +84,8 @@ __all__ = [
     "HashChainRecord",
     "VerificationResult",
     "IntegrityReport",
+    # Phase 3 report types
+    "ReconstructionCompleteness",
+    "TimelineEntry",
+    "TimelineReport",
 ]
