@@ -1,0 +1,38 @@
+# Environment and secrets
+.env
+.env.*
+
+# Python virtual environments
+.venv/
+venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
+
+# Local databases and datasets
+*.db
+*.sqlite
+*.sqlite3
+data/raw/
+data/processed/
+
+# Runtime-generated forensic evidence
+data/evidence/sessions/
+data/evidence/evaluation/
+
+# Logs
+logs/
+*.log
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

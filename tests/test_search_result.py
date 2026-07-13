@@ -1,3 +1,4 @@
+from schemas import SearchResult
 def test_search_result_serialization():
     result = SearchResult(
         id=10,

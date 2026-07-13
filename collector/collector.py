@@ -42,6 +42,7 @@ import logging
 import threading
 from pathlib import Path
 from typing import Any, Optional
+from integrity.sealer import SealingError, seal_session
 
 from config import EVIDENCE_DIR
 from schemas import (
@@ -76,25 +77,29 @@ class EvidenceCollector:
     """
 
     def __init__(
-    self,
-    session_id: str,
-    output_path: Path | None = None,
-) -> None:
+        self,
+        session_id: str,
+        output_path: Path | None = None,
+        auto_seal: bool = True,
+    ) -> None:
         self.session_id = session_id
 
         if output_path is None:
             output_path = EVIDENCE_DIR / f"{session_id}.jsonl"
 
         self.output_path = output_path
+        self.auto_seal = auto_seal
+
         self._lock = threading.Lock()
         self._seq = 0
 
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
 
         logger.info(
-            "EvidenceCollector ready.  session=%s  file=%s",
-            session_id,
+            "EvidenceCollector ready. session=%s file=%s auto_seal=%s",
+            self.session_id,
             self.output_path,
+            self.auto_seal,
         )
 
     # ------------------------------------------------------------------
@@ -175,7 +180,15 @@ class EvidenceCollector:
             events_before_end,
             status,
         )
-
+        if self.auto_seal:
+            try:
+                seal_session(self.output_path)
+            except SealingError as exc:
+                logger.error(
+                    "Failed to seal evidence session %s: %s",
+                    self.session_id,
+                    exc,
+                )
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

@@ -24,7 +24,7 @@ import pytest
 
 from agent.tools import create_draft, retrieve_email, search_email, send_email
 from db import get_connection
-from schemas import DraftRecord, EmailRecord
+from schemas import DraftRecord, EmailRecord, SearchResult
 
 
 # ---------------------------------------------------------------------------
@@ -72,11 +72,11 @@ class TestSearchEmail:
     def test_payroll_finds_results(self):
         results = search_email("payroll")
         assert len(results) > 0
-        assert all(isinstance(r, EmailRecord) for r in results)
+        assert all(isinstance(r, SearchResult   ) for r in results)
 
     def test_results_contain_keyword(self):
         for r in search_email("payroll"):
-            text = f"{r.subject or ''} {r.body or ''} {r.sender or ''}".lower()
+            text = f"{r.subject or ''} {r.snippet or ''} {r.sender or ''}".lower()
             assert "payroll" in text, f"keyword absent in email id={r.id}"
 
     def test_limit_is_respected(self):
