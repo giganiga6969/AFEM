@@ -230,12 +230,27 @@ def _get_collector(state: AgentState) -> EvidenceCollector:
 # Graph nodes
 # ---------------------------------------------------------------------------
 
+#: Maximum characters of retrieved email body captured into evidence.
+#: Named constant per forensic data-minimization requirement: long enough
+#: for injection analysis to see common indirect-injection patterns,
+#: bounded so full mailbox bodies are never duplicated wholesale into JSONL.
+FORENSIC_SNAPSHOT_MAX_CHARS: int = 1000
+
+
 def _build_artifact_references(tool_name: str, result_obj: dict) -> dict:
     """
     Convert tool output into lightweight forensic references.
 
-    mailbox.db remains the authoritative evidence source.
-    JSONL stores only references to those artifacts.
+    mailbox.db remains the authoritative evidence source. JSONL stores
+    references to those artifacts PLUS, for retrieve_email, a bounded
+    execution-time body snapshot.
+
+    Without this snapshot, later attribution phases have no way to inspect
+    what content the agent actually saw — the ToolMessage sent to the LLM
+    is transient and never otherwise persisted. The snapshot is captured
+    HERE at execution time, not re-queried from mailbox.db later, because
+    mailbox.db is mutable and a later query cannot prove what the agent was
+    shown at the time it acted.
     """
 
     if tool_name == "search_email":
@@ -253,11 +268,20 @@ def _build_artifact_references(tool_name: str, result_obj: dict) -> dict:
         }
 
     elif tool_name == "retrieve_email":
+        body = result_obj.get("body") or ""
+        truncated = len(body) > FORENSIC_SNAPSHOT_MAX_CHARS
+        snapshot = body[:FORENSIC_SNAPSHOT_MAX_CHARS]
+
         return {
             "artifact_type": "email",
             "artifact_id": result_obj["id"],
-            "message_id": result_obj["message_id"],
+            "message_id": result_obj.get("message_id"),
+            "sender": result_obj.get("sender"),
+            "subject": result_obj.get("subject"),
             "content_hash": result_obj["content_hash"],
+            "forensic_snapshot": snapshot,
+            "snapshot_truncated": truncated,
+            "snapshot_source": "execution_time_retrieve_email",
         }
 
     return result_obj

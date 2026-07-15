@@ -60,6 +60,21 @@ from schemas.report import (
     TimelineEntry,
     TimelineReport,
 )
+
+# Phase 4 attribution types
+from schemas.attribution import (
+    ActionCategory,
+    AttributionClass,
+    AttributionReport,
+    AuthorizationAssessment,
+    ConfidenceLabel,
+    EvidenceReference,
+    InjectionAssessment,
+    InjectionIndicator,
+    RuleContribution,
+    TaskOutcome,
+    TriggeredRule,
+)
 __all__ = [
     # Mailbox data models
     "EmailRecord",
@@ -88,4 +103,16 @@ __all__ = [
     "ReconstructionCompleteness",
     "TimelineEntry",
     "TimelineReport",
+    # Phase 4 attribution types
+    "AttributionClass",
+    "TaskOutcome",
+    "InjectionAssessment",
+    "ActionCategory",
+    "ConfidenceLabel",
+    "EvidenceReference",
+    "RuleContribution",
+    "TriggeredRule",
+    "AuthorizationAssessment",
+    "InjectionIndicator",
+    "AttributionReport",
 ]

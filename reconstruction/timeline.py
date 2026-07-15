@@ -339,9 +339,22 @@ def _build_tool_action_entry(
     row_count     = result_event.get("row_count")
     artifact_refs = result_event.get("evidence_refs", [])
 
-    # Fallback: extract artifact refs from output_data if not at top level
+    # Extract artifact references from output_data.
+    #
+    # search_email stores multiple references under ``evidence_refs``.
+    # retrieve_email stores one execution-time artifact reference directly
+    # as ``output_data``. Wrapping that dictionary in a list preserves its
+    # bounded forensic snapshot for downstream attribution.
     if not artifact_refs and isinstance(output_data, dict):
-        artifact_refs = output_data.get("evidence_refs", [])
+        nested_refs = output_data.get("evidence_refs")
+
+        if isinstance(nested_refs, list):
+            artifact_refs = nested_refs
+        elif (
+            output_data.get("artifact_type")
+            and output_data.get("artifact_id") is not None
+        ):
+            artifact_refs = [output_data]
 
     output_summary = _summarise_tool_result(tool_name, output_data, row_count)
 
