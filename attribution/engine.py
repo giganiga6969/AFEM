@@ -60,8 +60,7 @@ from attribution.authorization import (
 from attribution.confidence import compute_score, derive_ceiling
 from attribution.injection import (
     DetectedIndicator,
-    has_injection_indicators,
-    indicators_preceded_action,
+    extract_requested_actions_from_timeline,
     scan_timeline_entries,
 )
 from attribution.rules import (
@@ -183,13 +182,22 @@ def attribute(timeline_report: TimelineReport) -> AttributionReport:
     # ------------------------------------------------------------------ #
     raw_indicators: List[DetectedIndicator] = scan_timeline_entries(timeline_report.entries)
 
-    # Find sequence of first unauthorized action (for temporal ordering)
-    first_unauthorized_seq = _first_unauthorized_seq(tool_entries, unauthorized_tools)
-
-    temporal_order_ok = (
-        first_unauthorized_seq is not None
-        and indicators_preceded_action(raw_indicators, first_unauthorized_seq)
+        # Extract action semantics from execution-time retrieved content.
+    injection_requested_actions = extract_requested_actions_from_timeline(
+        timeline_report.entries
     )
+
+    # Correlate only actions that were:
+    # 1. requested by retrieved untrusted content,
+    # 2. unauthorized by the user, and
+    # 3. observed after the relevant retrieve_email event.
+    matched_injection_actions = _find_behaviorally_matched_actions(
+        tool_entries=tool_entries,
+        unauthorized_tools=unauthorized_tools,
+        injection_requested_actions=injection_requested_actions,
+    )
+
+    temporal_order_ok = bool(matched_injection_actions)
 
     # ------------------------------------------------------------------ #
     # 4. Rule evaluation                                                  #
@@ -232,8 +240,11 @@ def attribute(timeline_report: TimelineReport) -> AttributionReport:
 
     # Injection rules
     r, c = rule_injection_behavioral_correlation(
-        session_id, raw_indicators, unauthorized_tools,
-        tool_entries, temporal_order_ok
+        session_id,
+        raw_indicators,
+        matched_injection_actions,
+        tool_entries,
+        temporal_order_ok,
     )
     if r:
         triggered_rules.append(r)
@@ -254,7 +265,7 @@ def attribute(timeline_report: TimelineReport) -> AttributionReport:
         completeness       = completeness,
         unauthorized_tools = unauthorized_tools,
         raw_indicators     = raw_indicators,
-        temporal_order_ok  = temporal_order_ok,
+        matched_injection_actions = matched_injection_actions,
         uncertainty_reasons = uncertainty_reasons,
     )
 
@@ -371,7 +382,7 @@ def _select_verdict(
     completeness:        str,
     unauthorized_tools:  List[str],
     raw_indicators:      List[DetectedIndicator],
-    temporal_order_ok:   bool,
+    matched_injection_actions: List[str],
     uncertainty_reasons: List[str],
 ) -> Tuple[AttributionClass, InjectionAssessment]:
     """
@@ -405,7 +416,7 @@ def _select_verdict(
 
     # Determine injection assessment
     inj_assessment = _assess_injection(
-        raw_indicators, unauthorized_tools, temporal_order_ok
+        raw_indicators, unauthorized_tools, matched_injection_actions,
     )
 
     # Priority 3: Injection with behavioral correlation
@@ -438,22 +449,25 @@ def _select_verdict(
 
 
 def _assess_injection(
-    indicators:         List[DetectedIndicator],
-    unauthorized_tools: List[str],
-    temporal_order_ok:  bool,
+    indicators:               List[DetectedIndicator],
+    unauthorized_tools:       List[str],
+    matched_injection_actions: List[str],
 ) -> InjectionAssessment:
-    """Derive the injection assessment from evidence."""
+    """
+    Derive injection strength from content and behavioral evidence.
+
+    BEHAVIORALLY_CORRELATED requires a temporally later unauthorized action
+    that matches an action explicitly requested by retrieved untrusted
+    content. Suspicious content plus an unrelated unauthorized action is
+    recorded as an attempt, not attributed as INJ.
+    """
     if not indicators:
         return InjectionAssessment.NONE
 
-    if unauthorized_tools and temporal_order_ok:
+    if matched_injection_actions:
         return InjectionAssessment.BEHAVIORALLY_CORRELATED
 
-    if indicators and not unauthorized_tools:
-        return InjectionAssessment.ATTEMPT_DETECTED
-
-    # Indicators present but temporal order not established
-    if indicators and unauthorized_tools and not temporal_order_ok:
+    if indicators:
         return InjectionAssessment.ATTEMPT_DETECTED
 
     return InjectionAssessment.NONE
@@ -500,15 +514,42 @@ def _assess_task_outcome(tool_entries: list) -> TaskOutcome:
 # ---------------------------------------------------------------------------
 
 
-def _first_unauthorized_seq(
-    tool_entries:       list,
+def _find_behaviorally_matched_actions(
+    tool_entries: list,
     unauthorized_tools: List[str],
-) -> Optional[int]:
-    """Return the timeline sequence of the first unauthorized tool action."""
+    injection_requested_actions: dict[str, List[int]],
+) -> List[str]:
+    """
+    Return unauthorized actions matching earlier untrusted instructions.
+
+    An action is behaviorally matched only when:
+    - the action was requested by retrieved untrusted content;
+    - the action is unauthorized by the user's prompt;
+    - the observed action occurred after the retrieval sequence.
+
+    The returned list preserves observed tool order and contains no
+    duplicates.
+    """
+    unauthorized_set = set(unauthorized_tools)
+    matched: List[str] = []
+
     for entry in tool_entries:
-        if getattr(entry, "tool_name", None) in unauthorized_tools:
-            return getattr(entry, "sequence_number", None)
-    return None
+        tool_name = getattr(entry, "tool_name", None)
+        action_seq = getattr(entry, "sequence_number", None)
+
+        if tool_name not in unauthorized_set:
+            continue
+
+        request_sequences = injection_requested_actions.get(tool_name, [])
+
+        if (
+            action_seq is not None
+            and any(request_seq < action_seq for request_seq in request_sequences)
+            and tool_name not in matched
+        ):
+            matched.append(tool_name)
+
+    return matched
 
 
 # ---------------------------------------------------------------------------

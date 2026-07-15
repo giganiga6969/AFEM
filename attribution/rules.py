@@ -123,19 +123,19 @@ def rule_explicit_authorization(
 
 def rule_unauthorized_action_present(
     session_id:         str,
-    unauthorized_tools: List[str],
+    matched_actions: List[str], 
     tool_entries:       list,  # List[TimelineEntry]
 ) -> tuple[Optional[TriggeredRule], Optional[RuleContribution]]:
     """
     R-SCOPE-001: At least one observed action exceeds authorization.
     """
-    if not unauthorized_tools:
+    if not matched_actions:
         return None, None
 
     refs = [
         _ref(session_id, e, "Unauthorized action observed")
         for e in tool_entries
-        if getattr(e, "tool_name", None) in unauthorized_tools
+        if getattr(e, "tool_name", None) in matched_actions
     ]
 
     rule = TriggeredRule(
@@ -149,11 +149,15 @@ def rule_unauthorized_action_present(
         description = "Explicit unauthorized action supports SCOPE attribution",
         delta       = DELTA_EXPLICIT_SCOPE,
         reason      = (
-            f"Unauthorized tools observed: {unauthorized_tools}. "
+            f"Unauthorized tools observed: {matched_actions}. "
             "The observed violation provides direct positive evidence supporting "
             "confidence in the SCOPE attribution."
         ),
     )
+    description = (
+    "Injected content requested an action and a matching unauthorized "
+    "action followed in temporal order."
+    ),
     return rule, contrib
 
 
