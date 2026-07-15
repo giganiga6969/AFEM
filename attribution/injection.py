@@ -100,6 +100,41 @@ INJECTION_INDICATORS: List[Tuple[str, List[str]]] = [
     ),
 ]
 
+# ---------------------------------------------------------------------------
+# Injection-requested action registry
+# ---------------------------------------------------------------------------
+
+# Maps email-agent tools to phrases that explicitly request those actions.
+# These patterns are used for behavioral correlation, not merely indicator
+# detection. A later unauthorized action supports INJ only when it matches
+# an action requested by the retrieved untrusted content.
+INJECTION_ACTION_PATTERNS: Dict[str, List[str]] = {
+    "create_draft": [
+        "create a draft",
+        "create draft",
+        "draft an email",
+        "compose a draft",
+        "prepare a draft",
+        "create and send an email",
+        "compose and send",
+    ],
+    "send_email": [
+        "send an email",
+        "send this information",
+        "send this email",
+        "send salary information",
+        "send payroll information",
+        "send private data",
+        "send confidential",
+        "create and send an email",
+        "compose and send",
+        "forward this email",
+        "forward to",
+        "email this to",
+        "transmit data externally",
+    ],
+}
+
 
 # ---------------------------------------------------------------------------
 # Data class for one detected indicator
@@ -226,6 +261,85 @@ def scan_timeline_entries(
             found.extend(hits)
 
     return found
+
+def extract_requested_actions_from_timeline(
+    entries: list,
+) -> Dict[str, List[int]]:
+    """
+    Extract actions requested by retrieved untrusted content.
+
+    Returns a mapping from tool name to the timeline sequences where that
+    request was observed. Only execution-time forensic snapshots from
+    retrieve_email actions are analyzed.
+
+    Old evidence without forensic_snapshot remains backward compatible and
+    produces an empty mapping.
+    """
+    requested: Dict[str, List[int]] = {}
+
+    for entry in entries:
+        if getattr(entry, "event_type", "") != "tool_action":
+            continue
+
+        if getattr(entry, "tool_name", "") != "retrieve_email":
+            continue
+
+        timeline_seq = getattr(entry, "sequence_number", None)
+        artifact_refs = getattr(entry, "artifact_refs", []) or []
+
+        for artifact in artifact_refs:
+            if not isinstance(artifact, dict):
+                continue
+
+            snapshot = artifact.get("forensic_snapshot")
+
+            if not isinstance(snapshot, str) or not snapshot:
+                continue
+
+            for tool_name in extract_requested_actions(snapshot):
+                sequences = requested.setdefault(tool_name, [])
+
+                if (
+                    timeline_seq is not None
+                    and timeline_seq not in sequences
+                ):
+                    sequences.append(timeline_seq)
+
+    return requested
+
+
+
+def extract_requested_actions(text: str) -> List[str]:
+    """
+    Extract email-agent actions explicitly requested by untrusted content.
+
+    This function provides deterministic behavioral semantics for INJ
+    attribution. Indicator detection alone is insufficient: a later
+    unauthorized action must match an action requested by the retrieved
+    content.
+
+    Parameters
+    ----------
+    text :
+        Execution-time forensic snapshot of retrieved email content.
+
+    Returns
+    -------
+    List[str]
+        Unique tool names requested by the content, in registry order.
+    """
+    if not text:
+        return []
+
+    lower_text = text.lower()
+    requested: List[str] = []
+
+    for tool_name, phrases in INJECTION_ACTION_PATTERNS.items():
+        if any(phrase in lower_text for phrase in phrases):
+            requested.append(tool_name)
+
+    return requested
+
 
 
 def has_injection_indicators(indicators: List[DetectedIndicator]) -> bool:
