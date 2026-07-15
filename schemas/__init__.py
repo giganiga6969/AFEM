@@ -75,6 +75,9 @@ from schemas.attribution import (
     TaskOutcome,
     TriggeredRule,
 )
+
+# Phase 5 investigation report types
+from schemas.investigation import InvestigationReport
 __all__ = [
     # Mailbox data models
     "EmailRecord",
@@ -115,4 +118,6 @@ __all__ = [
     "AuthorizationAssessment",
     "InjectionIndicator",
     "AttributionReport",
+    # Phase 5 investigation report types
+    "InvestigationReport",
 ]

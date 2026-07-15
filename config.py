@@ -33,6 +33,11 @@ EVIDENCE_DIR = DATA_DIR / "evidence" / "sessions"
 # Despite the legacy name, this points to the sessions directory.
 EVIDENCE_FILE = EVIDENCE_DIR
 
+# Directory for Phase 5 investigation reports (JSON + HTML).
+# Deliberately does not add another "sessions" path component — sits
+# alongside the sessions directory under evidence/reports/investigations.
+INVESTIGATIONS_DIR = DATA_DIR / "evidence" / "reports" / "investigations"
+
 
 # -----------------------------
 # LLM
@@ -56,3 +61,4 @@ MAX_ITERATIONS = 10
 
 EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+INVESTIGATIONS_DIR.mkdir(parents=True, exist_ok=True)

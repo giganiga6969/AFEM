@@ -235,7 +235,10 @@ def attribute(timeline_report: TimelineReport) -> AttributionReport:
     r, c = rule_unauthorized_action_present(session_id, unauthorized_tools, tool_entries)
     if r:
         triggered_rules.append(r)
-        contradictory_evidence.extend(r.evidence_refs)
+        # Unauthorized actions are positive evidence of a scope violation.
+        # If injection-behavior correlation is established later, the more
+        # specific injection rule adds its own supporting evidence.
+        supporting_evidence.extend(r.evidence_refs)
     if c: contributions.append(c)
 
     # Injection rules
